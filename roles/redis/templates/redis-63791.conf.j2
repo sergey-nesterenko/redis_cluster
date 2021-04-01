@@ -1,0 +1,67 @@
+# General settings
+bind 127.0.0.1 {{ ansible_host }}
+port {{ redis_port }}
+pidfile "/var/run/redis-{{ redis_port }}.pid"
+dir /var/lib/redis
+databases 16
+daemonize yes
+
+# Networking/connection settings
+timeout 60
+tcp-keepalive 300
+tcp-backlog 16384
+
+# Limits
+maxclients 15000
+maxmemory 1gb
+maxmemory-policy volatile-lru
+maxmemory-samples 5
+lua-time-limit 5000
+
+# Security
+protected-mode no
+rename-command FLUSHALL SUDO_FLUSHALL
+rename-command FLUSHDB SUDO_FLUSHDB
+# Append Only Mode
+appendonly no
+appendfilename "appendonly-redis-{{ redis_port }}.aof"
+appendfsync everysec
+no-appendfsync-on-rewrite no
+auto-aof-rewrite-percentage 100
+auto-aof-rewrite-min-size 64mb
+
+# Snapshotting
+dbfilename "dump-redis-{{ redis_port }}.rdb"
+save 900 1
+save 600 100
+save 300 10000
+stop-writes-on-bgsave-error yes
+rdbcompression yes
+rdbchecksum yes
+
+# Advanced
+hash-max-ziplist-entries 512
+hash-max-ziplist-value 64
+list-max-ziplist-entries 512
+list-max-ziplist-value 64
+set-max-intset-entries 512
+zset-max-ziplist-entries 128
+zset-max-ziplist-value 64
+activerehashing yes
+client-output-buffer-limit normal 0 0 0
+client-output-buffer-limit replica 4gb 1gb 60
+client-output-buffer-limit pubsub 32mb 8mb 60
+hz 10
+aof-rewrite-incremental-fsync yes
+notify-keyspace-events ""
+
+# Replication
+replica-serve-stale-data yes
+replica-read-only yes
+repl-disable-tcp-nodelay no
+replica-priority 100
+# Logging settings
+loglevel notice
+logfile "/var/log/redis/redis-{{ redis_port }}.log"
+slowlog-log-slower-than 10000
+slowlog-max-len 512

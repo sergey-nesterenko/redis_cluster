@@ -1,0 +1,9 @@
+daemonize yes
+port {{ sentinel_port }}
+pidfile "/var/run/redis/sentinel-{{ sentinel_port }}.pid"
+logfile "/var/log/redis/sentinel-{{ sentinel_port }}.log"
+# Security
+protected-mode no
+
+sentinel deny-scripts-reconfig yes
+sentinel monitor master_{{ redis_port }}

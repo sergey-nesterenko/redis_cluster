@@ -1,0 +1,48 @@
+---
+# tasks file for redis/roles/sentinel
+  - name: RECONFIGURE systemd for sentinel-26391.conf with port 26391
+    replace: path=/usr/lib/systemd/system/redis-sentinel.service regexp='/etc/redis/sentinel.conf' replace='/etc/redis/sentinel-{{ sentinel_port }}.conf'
+    register: sentinel_systemd
+
+  - name: RECONFIGURE systemd ADD parameters
+    lineinfile:
+      dest: /usr/lib/systemd/system/redis-sentinel.service
+      insertafter: '^ExecStop'
+      line: "{{ item }}"
+      state: present
+    with_items:
+      - TimeoutStopSec=0
+      - Restart=always
+    register: sentinel_systemd2
+
+  - name: COPY sentinel-26391.conf.j2
+    template: src=sentinel-{{ sentinel_port }}.conf.j2 dest=/etc/redis/sentinel-{{ sentinel_port }}.conf mode=0644
+    register: sentinel_conf
+
+  - name: FIND CURRENT REDIS MASTER NODE
+    shell: find_master=$(/usr/bin/redis-cli -p {{ redis_port }} info replication|grep 'role:master' 2>/dev/null); if [[ -n "$find_master" ]]; then  echo "{{ ansible_host }}"; else echo "slave"; fi;
+    register: is_redis_master
+
+  - set_fact:
+      set_redis_master_ip: "{{ is_redis_master.stdout }}"
+    when: is_redis_master.stdout != "slave"
+
+  - name: INSERT MASTER ROW INTO /etc/redis/sentinel-26391.conf
+    lineinfile:
+      dest: /etc/redis/sentinel-{{ sentinel_port }}.conf
+       #insertafter: '^sentinel deny-scripts-reconfig yes'
+      regexp: '^sentinel monitor master_{{ redis_port }}'
+      line: 'sentinel monitor master_{{ redis_port }} {{ is_redis_master.stdout }} {{ redis_port }} 2'
+      state: present
+    delegate_to: "{{ item }}"
+    with_items: "{{ play_hosts }}"
+    #run_once: yes
+    when: is_redis_master.stdout != "slave"
+
+  - name: START SENTINEL systemd
+    shell: systemctl daemon-reload
+    when: sentinel_systemd.changed or sentinel_systemd2.changed
+
+  - name: START SENTINEL
+    shell: /usr/bin/redis-server /etc/redis/sentinel-{{ sentinel_port }}.conf --sentinel
+    when: sentinel_conf.changed

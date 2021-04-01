@@ -1,0 +1,10 @@
+---
+- name: DEPLOY REDIS CLUSTER
+  hosts: DB_ZK
+  become: true
+
+  roles:
+    - redis
+    - sentinel
+    - haproxy
+    - keepalived

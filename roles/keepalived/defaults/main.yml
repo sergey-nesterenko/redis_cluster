@@ -1,0 +1,5 @@
+---
+# defaults file for kubernetes/roles/kube_ka
+  hosts_group: "{{ groups['DB_ZK'] }}"
+  redis_vip: 10.18.8.213
+  router_id: 213

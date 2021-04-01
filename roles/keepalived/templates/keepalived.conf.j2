@@ -1,0 +1,39 @@
+global_defs {
+   enable_script_security
+   script_user nobody
+}
+
+vrrp_script haproxy_check {
+   script "/usr/sbin/pidof haproxy"
+   interval 2
+   weight 10
+}
+
+vrrp_instance VI_1 {
+   interface ens192
+   virtual_router_id {{ router_id }}
+   priority  100
+   advert_int 2
+   state  BACKUP
+   unicast_src_ip {{ ansible_host }}
+   unicast_peer {
+ {% for node in hosts_group %}
+   {% if hostvars[node].ansible_host != ansible_default_ipv4.address %}
+    {{ hostvars[node].ansible_host }}
+   {% endif %}
+ {% endfor %}
+   }
+   virtual_ipaddress {
+       {{ redis_vip }}
+   }
+   track_script {
+       haproxy_check
+   }
+   track_interface {
+       ens192
+   }
+   authentication {
+      auth_type PASS
+      auth_pass kadmin
+   }
+}
