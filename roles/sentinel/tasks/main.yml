@@ -1,23 +1,12 @@
 ---
 # tasks file for redis/roles/sentinel
-  - name: RECONFIGURE systemd for sentinel-26391.conf with port 26391
-    replace: path=/usr/lib/systemd/system/redis-sentinel.service regexp='/etc/redis/sentinel.conf' replace='/etc/redis/sentinel-{{ sentinel_port }}.conf'
-    register: sentinel_systemd
-
-  - name: RECONFIGURE systemd ADD parameters
-    lineinfile:
-      dest: /usr/lib/systemd/system/redis-sentinel.service
-      insertafter: '^ExecStop'
-      line: "{{ item }}"
-      state: present
-    with_items:
-      - TimeoutStopSec=0
-      - Restart=always
-    register: sentinel_systemd2
-
   - name: COPY sentinel-26391.conf.j2
     template: src=sentinel-{{ sentinel_port }}.conf.j2 dest=/etc/redis/sentinel-{{ sentinel_port }}.conf mode=0644
     register: sentinel_conf
+
+  - name: COPY sentinel-26391.service.j2 TO systemd
+    template: src=sentinel-{{ sentinel_port }}.service.j2 dest=/etc/systemd/system/sentinel-{{ sentinel_port }}.service mode=0644
+    register: sentinel_service
 
   - name: FIND CURRENT REDIS MASTER NODE
     shell: find_master=$(/usr/bin/redis-cli -p {{ redis_port }} info replication|grep 'role:master' 2>/dev/null); if [[ -n "$find_master" ]]; then  echo "{{ ansible_host }}"; else echo "slave"; fi;
@@ -39,10 +28,22 @@
     #run_once: yes
     when: is_redis_master.stdout != "slave"
 
+  - name: CHOWN REDIS /var/log/redis /etc/redis
+     #shell: chown -R redis:redis /var/log/redis
+    file:
+     path: "{{ item }}"
+     state: directory
+     recurse: yes
+     owner: redis
+    with_items:
+      - /var/log/redis
+      - /etc/redis
+
   - name: START SENTINEL systemd
     shell: systemctl daemon-reload
-    when: sentinel_systemd.changed or sentinel_systemd2.changed
+    when: sentinel_service.changed
 
   - name: START SENTINEL
-    shell: /usr/bin/redis-server /etc/redis/sentinel-{{ sentinel_port }}.conf --sentinel
-    when: sentinel_conf.changed
+    #shell: /usr/bin/redis-server /etc/redis/sentinel-{{ sentinel_port }}.conf --sentinel
+    service: name=sentinel-{{ sentinel_port }} state=restarted enabled=yes
+    when: sentinel_conf.changed or sentinel_service.changed

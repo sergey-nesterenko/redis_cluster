@@ -1,0 +1,29 @@
+[Unit]
+Description=Redis Sentinel
+After=network.target
+
+[Service]
+User=redis
+Group=redis
+LimitNOFILE=65000
+LimitMEMLOCK=infinity
+Type=forking
+ExecStart=/usr/bin/redis-server /etc/redis/sentinel-{{ sentinel_port }}.conf --sentinel
+ExecStop=/usr/bin/redis-cli -p {{ sentinel_port }} shutdown
+#sometext
+TimeoutStopSec=0
+Restart=always
+UMask=007
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectHome=yes
+ReadOnlyDirectories=/
+ReadWriteDirectories=-/var/lib/redis
+ReadWriteDirectories=-/var/log/redis
+ReadWriteDirectories=-/var/run/redis
+CapabilityBoundingSet=~CAP_SYS_PTRACE
+ProtectSystem=true
+ReadWriteDirectories=-/etc/redis
+
+[Install]
+WantedBy=multi-user.target
