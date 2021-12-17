@@ -2,4 +2,5 @@
 # defaults file for kubernetes/roles/kube_ha
   ha_v: 2.2.4
   hosts_group: "{{ groups['DB_ZK'] }}"
+  redis_port: 63791
   redis_vip: 10.18.8.213

@@ -3,3 +3,5 @@
   hosts_group: "{{ groups['DB_ZK'] }}"
   redis_port: 63791
   sentinel_port: 26391
+  down_after_milliseconds: 10000
+  quorum: 2

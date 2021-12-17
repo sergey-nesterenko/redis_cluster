@@ -6,25 +6,46 @@
      disable_gpg_check: yes
      state: present
 
+  #- name: dnf update_cache
+  #  dnf:
   - name: INSTALL redis 6
-    shell: dnf module install redis:remi-6.2 -y
-    #dnf:
-    #  name: redis:6.2
-    #  update_cache: true
-    #  state: present
+    #shell: dnf module install redis:remi-6.2 -y
+    dnf:
+      name: redis
+      update_cache: true
+      state: latest
+
+  - name: CREATE NEEDED DIRS
+    file:
+      path: "{{ item }}"
+      state: directory
+      mode: 0775
+      owner: redis
+      recurse: yes
+    with_items:
+      - /data/redis
+      - /var/log/redis
+      - /opt/redis/modules
   
   - name: COPY redis-63791.conf.j2
     template: src=redis-{{ redis_port }}.conf.j2 dest=/etc/redis/redis-{{ redis_port }}.conf mode=0644
     register: redis_conf
 
+  - name: COPY redis-63791.service.j2
+    template: src=redis-{{ redis_port }}.service.j2 dest=/etc/systemd/system/redis-{{ redis_port }}.service mode=0644
+    register: redis_service
+
+  - name: COPY librejson.so module for json types support
+    copy: src=librejson.so dest=/opt/redis/modules/librejson.so owner=redis group=redis mode=0774
+
   - name: FIND CURRENT REDIS MASTER NODE
-    shell: find_master=$(/usr/bin/redis-cli -p {{ redis_port }} info replication|grep 'role:master' 2>/dev/null); if [[ -n "$find_master" ]]; then echo "{{ ansible_host }}"; else echo $(/usr/bin/redis-cli -p 63791 info replication|grep master_host|cut -d':' -f 2 2>/dev/null); fi;
+    shell: find_master=$(/usr/bin/redis-cli -p {{ redis_port }} info replication|grep 'role:master' 2>/dev/null); if [[ -n "$find_master" ]]; then echo "{{ ansible_host }}"; else echo $(/usr/bin/redis-cli -p {{ redis_port }} info replication|grep master_host|cut -d':' -f 2 2>/dev/null); fi;
     register: is_redis_master
 
   - set_fact:
       set_redis_master_ip: "{{ is_redis_master.stdout }}"
     run_once: yes
-    when: inventory_hostname == play_hosts[0]
+    #when: inventory_hostname == play_hosts[0]
     #when: is_redis_master.stdout != ""
 
   - block:
@@ -34,6 +55,10 @@
        #delegate_to: "{{ item }}"
        #with_items: "{{ hosts_group }}"
        when: ansible_host != set_redis_master_ip
+
+     - name: set first_redis_master_ip
+       set_fact: first_redis_master_ip="{{ set_redis_master_ip }}"
+       run_once: yes
 
     when: set_redis_master_ip != ""
   - block:
@@ -49,25 +74,26 @@
 
     when: set_redis_master_ip == ""
 
-  - name: RECONFIGURE systemd for redis-63791.conf with port 63791
-    replace: path=/usr/lib/systemd/system/redis.service regexp='/etc/redis/redis.conf' replace='/etc/redis/redis-{{ redis_port }}.conf'
-    register: redis_systemd1
+  #- name: RECONFIGURE systemd for redis-63791.conf with port 63791
+  #  replace: path=/usr/lib/systemd/system/redis.service regexp='/etc/redis/redis.conf' replace='/etc/redis/redis-{{ redis_port }}.conf'
+  #  register: redis_systemd1
 
-  - name: RECONFIGURE systemd ADD parameters
-    lineinfile:
-      dest: /usr/lib/systemd/system/redis.service
-      insertafter: '^ExecStop'
-      line: "{{ item }}"
-      state: present
-    with_items:
-      - TimeoutStopSec=0
-      - Restart=always
-    register: redis_systemd2
+  #- name: RECONFIGURE systemd ADD parameters
+  #  lineinfile:
+  #    dest: /usr/lib/systemd/system/redis.service
+  #    insertafter: '^ExecStop'
+  #    line: "{{ item }}"
+  #    state: present
+  #  with_items:
+  #    - TimeoutStopSec=0
+  #    - Restart=always
+  #  register: redis_systemd2
 
   - name: reload systemd
     shell: systemctl daemon-reload
-    when: redis_systemd1.changed or redis_systemd2.changed
+    when: redis_service.changed
+  #  when: redis_systemd1.changed or redis_systemd2.changed
 
   - name: restart redis
-    service: name=redis state=restarted enabled=yes
-    when: redis_conf.changed
+    service: name=redis-{{ redis_port }} state=restarted enabled=yes
+    when: redis_conf.changed or redis_service.changed

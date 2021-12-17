@@ -21,7 +21,7 @@
       dest: /etc/redis/sentinel-{{ sentinel_port }}.conf
        #insertafter: '^sentinel deny-scripts-reconfig yes'
       regexp: '^sentinel monitor master_{{ redis_port }}'
-      line: 'sentinel monitor master_{{ redis_port }} {{ is_redis_master.stdout }} {{ redis_port }} 2'
+      line: 'sentinel monitor master_{{ redis_port }} {{ is_redis_master.stdout }} {{ redis_port }} {{ quorum }}'
       state: present
     delegate_to: "{{ item }}"
     with_items: "{{ play_hosts }}"

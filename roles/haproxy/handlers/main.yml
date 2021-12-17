@@ -2,7 +2,7 @@
 # handlers file for kubernetes/roles/kube_ha
    - name: restart haproxy
      service: name=haproxy state=restarted enabled=yes
-     when: is_ha.stdout == "not"
+     when: haproxy_conf.changed
 
    - name: reload haproxy
      service: name=haproxy state=reloaded enabled=yes

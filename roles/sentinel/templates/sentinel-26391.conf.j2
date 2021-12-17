@@ -7,3 +7,4 @@ protected-mode no
 
 sentinel deny-scripts-reconfig yes
 sentinel monitor master_{{ redis_port }}
+sentinel down-after-milliseconds master_{{ redis_port }} {{ down_after_milliseconds }}

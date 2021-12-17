@@ -2,7 +2,8 @@
 bind 127.0.0.1 {{ ansible_host }}
 port {{ redis_port }}
 pidfile "/var/run/redis-{{ redis_port }}.pid"
-dir /var/lib/redis
+#dir /var/lib/redis
+dir "/data/redis"
 databases 16
 daemonize yes
 
@@ -65,3 +66,5 @@ loglevel notice
 logfile "/var/log/redis/redis-{{ redis_port }}.log"
 slowlog-log-slower-than 10000
 slowlog-max-len 512
+#  Modules
+loadmodule /opt/redis/modules/librejson.so
